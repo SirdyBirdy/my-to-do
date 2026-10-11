@@ -213,3 +213,10 @@ dialog[open]{animation:pop .2s cubic-bezier(.2,.9,.3,1.1)}
   .day{font-size:56px}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+.field select{
+  width:100%;background:rgba(255,255,255,.07);border:0;border-radius:12px;padding:11px 13px;font-size:16px;
+  transition:background .15s,box-shadow .15s;
+}
+.field select:focus{outline:none;background:rgba(255,255,255,.1);box-shadow:0 0 0 2px var(--teal)}
+.field select option{background:#1f3233;color:var(--text)}

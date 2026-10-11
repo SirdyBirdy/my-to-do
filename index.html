@@ -56,6 +56,12 @@
       <div class="field"><label for="fDate">Date</label><input id="fDate" type="date" required></div>
       <div class="field"><label for="fTime">Time (optional)</label><input id="fTime" type="time"></div>
     </div>
+    <div class="two">
+      <div class="field"><label for="fEnd">Ends (optional)</label><input id="fEnd" type="date"></div>
+      <div class="field"><label for="fRepeat">Repeat</label>
+        <select id="fRepeat"><option value="">Never</option><option value="weekly">Every week</option><option value="monthly">Every month</option><option value="yearly">Every year</option></select>
+      </div>
+    </div>
     <div class="hint" id="hint"></div>
     <div class="field" style="margin-top:14px"><label for="fTag">Tag</label><input id="fTag" maxlength="24" placeholder="Work, Personal, Health" list="tagList"><datalist id="tagList"></datalist><div class="tagpick" id="tagpick"></div></div>
     <div class="field"><label for="fNote">Note</label><textarea id="fNote" maxlength="500" placeholder="Anything to remember"></textarea></div>
