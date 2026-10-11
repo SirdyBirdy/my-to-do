@@ -10,7 +10,7 @@
 </head>
 <body>
 
-<header>
+<header id="hdr">
   <div class="wrap">
     <div class="top">
       <div class="title">
@@ -25,13 +25,22 @@
         <button class="iconbtn" id="pastBtn" aria-pressed="false" title="Show past dates" aria-label="Show past dates">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M12 8v4l3 2"/></svg>
         </button>
+        <button class="iconbtn" id="panelBtn" aria-pressed="true" title="Tasks (T)" aria-label="Toggle tasks panel">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h12M9 12h12M9 18h12"/><path d="m3 6 1.5 1.5L7 5M3 12l1.5 1.5L7 11M3 18l1.5 1.5L7 17"/></svg>
+        </button>
         <div class="seg" role="group" aria-label="View">
           <button id="vGrid" aria-pressed="true" title="Board" aria-label="Board view"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="3" width="7" height="10" rx="2"/><rect x="14" y="3" width="7" height="6" rx="2"/><rect x="3" y="16" width="7" height="5" rx="2"/><rect x="14" y="12" width="7" height="9" rx="2"/></svg></button>
           <button id="vList" aria-pressed="false" title="List" aria-label="List view"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="3.5" cy="6" r=".8"/><circle cx="3.5" cy="12" r=".8"/><circle cx="3.5" cy="18" r=".8"/></svg></button>
         </div>
+        <button class="iconbtn" id="syncBtn" data-state="off" title="Set up GitHub sync" aria-label="GitHub sync">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18a4.5 4.5 0 0 1-.6-8.96A6 6 0 0 1 18 10.5 3.75 3.75 0 0 1 17.25 18z"/></svg>
+          <i class="sdot"></i>
+        </button>
         <div class="menu">
           <button class="iconbtn" id="moreBtn" aria-label="More" aria-haspopup="true"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg></button>
           <div class="pop" id="pop">
+            <button id="syncNow">Sync now</button>
+            <button id="syncSettings">Sync settings</button>
             <button id="exportBtn">Export backup</button>
             <button id="importBtn">Import backup</button>
           </div>
@@ -42,7 +51,24 @@
   </div>
 </header>
 
-<main><div class="wrap" id="board"></div></main>
+<main>
+  <div class="wrap layout panel-on" id="layout">
+    <div id="board"></div>
+    <aside id="tasks" aria-label="Tasks">
+      <div class="tp-head">
+        <h2>Tasks</h2><span id="taskCount" class="tcount"></span>
+        <button class="tp-close" id="panelClose" aria-label="Close tasks"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+      </div>
+      <form id="taskForm" autocomplete="off"><input id="taskIn" maxlength="140" placeholder="Add a task" aria-label="Add a task"></form>
+      <ul id="taskList"></ul>
+      <div class="donebar" id="doneBar" hidden>
+        <button id="doneToggle" class="linkbtn"></button>
+        <button id="doneClear" class="linkbtn">Clear done</button>
+      </div>
+      <ul id="doneList"></ul>
+    </aside>
+  </div>
+</main>
 
 <button class="fab" id="fab" aria-label="Add a date" title="Add a date (N)">
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
@@ -73,9 +99,26 @@
   </form>
 </dialog>
 
+<dialog id="syncDlg">
+  <form class="sheet" id="syncForm" autocomplete="off">
+    <h2>GitHub sync</h2>
+    <p class="help">Saves the board to a file in a private GitHub repo so every device shows the same thing. The README has the setup steps.</p>
+    <div class="field"><label for="sRepo">Data repo</label><input id="sRepo" placeholder="your-username/dateboard-data" required></div>
+    <div class="field"><label for="sPath">File</label><input id="sPath" placeholder="data.json"></div>
+    <div class="field"><label for="sToken">Access token</label><input id="sToken" type="password" placeholder="github_pat_..." required autocomplete="off"></div>
+    <div class="hint" id="sErr"></div>
+    <div class="btns">
+      <button type="button" class="btn danger" id="sOff">Disconnect</button>
+      <button type="button" class="btn" id="sCancel">Cancel</button>
+      <button type="submit" class="btn primary" id="sSave">Save and sync</button>
+    </div>
+  </form>
+</dialog>
+
 <div class="toast" id="toast"><span id="toastMsg"></span><button id="undoBtn">Undo</button></div>
 <input type="file" id="file" accept="application/json" hidden>
 
+<script src="sync.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

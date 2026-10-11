@@ -220,3 +220,72 @@ dialog[open]{animation:pop .2s cubic-bezier(.2,.9,.3,1.1)}
 }
 .field select:focus{outline:none;background:rgba(255,255,255,.1);box-shadow:0 0 0 2px var(--teal)}
 .field select option{background:#1f3233;color:var(--text)}
+
+/* layout with tasks panel */
+.layout{display:grid;grid-template-columns:minmax(0,1fr);gap:28px;align-items:start}
+.layout.panel-on{grid-template-columns:minmax(0,1fr) 320px}
+#tasks{
+  display:none;position:sticky;top:calc(var(--hdr,140px) + 16px);
+  max-height:calc(100vh - var(--hdr,140px) - 32px);overflow:auto;
+  background:var(--surface);border-radius:22px;padding:18px;box-shadow:inset 0 0 0 1px var(--line);
+}
+.panel-on #tasks{display:block}
+.tp-head{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.tp-head h2{font-size:19px;font-weight:700;letter-spacing:-.02em}
+.tcount{min-width:22px;height:22px;padding:0 7px;border-radius:999px;background:rgba(79,209,197,.16);color:var(--teal);font-size:12.5px;font-weight:600;display:grid;place-items:center}
+.tcount:empty{display:none}
+.tp-close{display:none;margin-left:auto;width:30px;height:30px;border-radius:50%;place-items:center;background:rgba(255,255,255,.08);color:var(--mute)}
+.tp-close svg{width:15px;height:15px}
+#taskIn{
+  width:100%;height:40px;border:0;border-radius:12px;padding:0 13px;font-size:15px;
+  background:rgba(255,255,255,.07);transition:background .15s,box-shadow .15s;
+}
+#taskIn::placeholder{color:var(--mute)}
+#taskIn:focus{outline:none;background:rgba(255,255,255,.1);box-shadow:0 0 0 2px var(--teal)}
+#tasks ul{list-style:none;padding:0;margin:10px 0 0}
+.task{display:flex;align-items:flex-start;gap:10px;padding:9px 6px;border-radius:10px;transition:background .15s}
+.task:hover{background:rgba(255,255,255,.05)}
+.tcheck{
+  flex:none;width:22px;height:22px;margin-top:1px;border-radius:50%;display:grid;place-items:center;
+  box-shadow:inset 0 0 0 1.8px rgba(255,255,255,.28);color:transparent;transition:background .15s,box-shadow .15s,color .15s;
+}
+.tcheck svg{width:13px;height:13px}
+.tcheck:hover{box-shadow:inset 0 0 0 1.8px var(--teal);color:rgba(79,209,197,.6)}
+.task.done .tcheck{background:var(--teal);box-shadow:none;color:#0a2523}
+.ttext{flex:1;min-width:0;font-size:15px;line-height:1.4;overflow-wrap:anywhere;cursor:text}
+.task.done .ttext{color:var(--mute);text-decoration:line-through}
+.tedit{flex:1;min-width:0;border:0;border-radius:8px;padding:2px 8px;margin:-2px 0;font-size:15px;line-height:1.4;background:rgba(255,255,255,.1);box-shadow:0 0 0 2px var(--teal)}
+.tedit:focus{outline:none}
+.tdel{flex:none;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;color:var(--mute);opacity:0;transition:opacity .15s,background .15s}
+.tdel svg{width:12px;height:12px}
+.task:hover .tdel,.tdel:focus-visible{opacity:1}
+.tdel:hover{background:rgba(255,255,255,.12);color:var(--text)}
+@media (hover:none){.tdel{opacity:1}}
+.t-empty{color:var(--mute);font-size:14px;padding:10px 6px}
+.donebar{display:flex;justify-content:space-between;margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+.donebar[hidden]{display:none}
+.linkbtn{font-size:13.5px;color:var(--mute);font-weight:500;padding:2px 4px;border-radius:6px}
+.linkbtn:hover{color:var(--text)}
+
+/* sync button and dialog */
+#syncBtn{position:relative}
+.sdot{position:absolute;right:5px;top:5px;width:8px;height:8px;border-radius:50%;background:#5fd39a;box-shadow:0 0 0 2px #2a3b3c;display:none}
+#syncBtn[data-state="ok"] .sdot,#syncBtn[data-state="busy"] .sdot,#syncBtn[data-state="error"] .sdot{display:block}
+#syncBtn[data-state="busy"] .sdot{background:var(--amber);animation:blink 1s ease-in-out infinite}
+#syncBtn[data-state="error"] .sdot{background:#e07a6b}
+#syncBtn[data-state="ok"]{color:var(--teal)}
+@keyframes blink{50%{opacity:.35}}
+.help{color:var(--mute);font-size:14px;margin:-8px 0 16px;line-height:1.45}
+.btn:disabled{opacity:.6;cursor:default}
+
+@media (max-width:900px){
+  .layout.panel-on{grid-template-columns:minmax(0,1fr)}
+  #tasks{
+    display:block;position:fixed;left:0;right:0;bottom:0;top:auto;z-index:35;max-height:78vh;
+    border-radius:26px 26px 0 0;background:#1f3233;padding:20px 20px calc(24px + var(--safe-b));
+    box-shadow:0 -20px 60px rgba(0,0,0,.5),inset 0 0 0 1px rgba(255,255,255,.08);
+    transform:translateY(105%);transition:transform .28s cubic-bezier(.2,.8,.2,1);visibility:hidden;
+  }
+  .panel-on #tasks{transform:none;visibility:visible}
+  .tp-close{display:grid}
+}
