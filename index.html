@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#142021">
+<title>Dateboard</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='24' fill='%23142021'/%3E%3Ctext x='50' y='68' font-size='56' font-family='-apple-system,Helvetica' font-weight='700' text-anchor='middle' fill='%234fd1c5'%3E11%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="top">
+      <div class="title">
+        <h1 id="today">Today</h1>
+        <p id="summary"></p>
+      </div>
+      <div class="tools">
+        <label class="search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <input id="q" type="search" placeholder="Search" aria-label="Search">
+        </label>
+        <button class="iconbtn" id="pastBtn" aria-pressed="false" title="Show past dates" aria-label="Show past dates">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M12 8v4l3 2"/></svg>
+        </button>
+        <div class="seg" role="group" aria-label="View">
+          <button id="vGrid" aria-pressed="true" title="Board" aria-label="Board view"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="3" width="7" height="10" rx="2"/><rect x="14" y="3" width="7" height="6" rx="2"/><rect x="3" y="16" width="7" height="5" rx="2"/><rect x="14" y="12" width="7" height="9" rx="2"/></svg></button>
+          <button id="vList" aria-pressed="false" title="List" aria-label="List view"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="3.5" cy="6" r=".8"/><circle cx="3.5" cy="12" r=".8"/><circle cx="3.5" cy="18" r=".8"/></svg></button>
+        </div>
+        <div class="menu">
+          <button class="iconbtn" id="moreBtn" aria-label="More" aria-haspopup="true"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg></button>
+          <div class="pop" id="pop">
+            <button id="exportBtn">Export backup</button>
+            <button id="importBtn">Import backup</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="chips" id="chips"></div>
+  </div>
+</header>
+
+<main><div class="wrap" id="board"></div></main>
+
+<button class="fab" id="fab" aria-label="Add a date" title="Add a date (N)">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+</button>
+
+<dialog id="dlg">
+  <form class="sheet" id="form" autocomplete="off">
+    <h2 id="dlgTitle">New date</h2>
+    <div class="field"><label for="fTitle">What</label><input id="fTitle" required maxlength="120" placeholder="Dentist, Rent due, Mom's birthday"></div>
+    <div class="two">
+      <div class="field"><label for="fDate">Date</label><input id="fDate" type="date" required></div>
+      <div class="field"><label for="fTime">Time (optional)</label><input id="fTime" type="time"></div>
+    </div>
+    <div class="hint" id="hint"></div>
+    <div class="field" style="margin-top:14px"><label for="fTag">Tag</label><input id="fTag" maxlength="24" placeholder="Work, Personal, Health" list="tagList"><datalist id="tagList"></datalist><div class="tagpick" id="tagpick"></div></div>
+    <div class="field"><label for="fNote">Note</label><textarea id="fNote" maxlength="500" placeholder="Anything to remember"></textarea></div>
+    <div class="btns">
+      <button type="button" class="btn danger" id="delBtn">Delete</button>
+      <button type="button" class="btn" id="cancelBtn">Cancel</button>
+      <button type="submit" class="btn primary" id="saveBtn">Add</button>
+    </div>
+  </form>
+</dialog>
+
+<div class="toast" id="toast"><span id="toastMsg"></span><button id="undoBtn">Undo</button></div>
+<input type="file" id="file" accept="application/json" hidden>
+
+<script src="app.js"></script>
+</body>
+</html>
