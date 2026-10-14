@@ -31,6 +31,7 @@
         <div class="seg" role="group" aria-label="View">
           <button id="vGrid" aria-pressed="true" title="Board" aria-label="Board view"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="3" width="7" height="10" rx="2"/><rect x="14" y="3" width="7" height="6" rx="2"/><rect x="3" y="16" width="7" height="5" rx="2"/><rect x="14" y="12" width="7" height="9" rx="2"/></svg></button>
           <button id="vList" aria-pressed="false" title="List" aria-label="List view"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="3.5" cy="6" r=".8"/><circle cx="3.5" cy="12" r=".8"/><circle cx="3.5" cy="18" r=".8"/></svg></button>
+          <button id="vProj" aria-pressed="false" title="Projects" aria-label="Projects view"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"><path d="M12 3 3 8l9 5 9-5-9-5z"/><path d="m3 13 9 5 9-5"/></svg></button>
         </div>
         <button class="iconbtn" id="syncBtn" data-state="off" title="Set up GitHub sync" aria-label="GitHub sync">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18a4.5 4.5 0 0 1-.6-8.96A6 6 0 0 1 18 10.5 3.75 3.75 0 0 1 17.25 18z"/></svg>
@@ -98,6 +99,31 @@
     </div>
   </form>
 </dialog>
+
+<dialog id="pdlg">
+  <form class="sheet" id="pform" autocomplete="off">
+    <h2 id="pTitle">New project</h2>
+    <div class="field"><label for="pName">Name</label><input id="pName" required maxlength="80" placeholder="Maximus Events website"></div>
+    <div class="two">
+      <div class="field"><label for="pDue">Deadline (optional)</label><input id="pDue" type="date"></div>
+      <div class="field"><label for="pTag">Tag</label><input id="pTag" maxlength="24" list="tagList" placeholder="Client"></div>
+    </div>
+    <div class="tagpick" id="pTagpick"></div>
+    <div class="field" style="margin-top:14px"><label for="pNote">Note</label><textarea id="pNote" maxlength="500" placeholder="Scope, links, anything to remember"></textarea></div>
+    <div id="pTasksWrap" hidden>
+      <div class="ptitle"><span>Tasks</span><span id="pCount"></span></div>
+      <input id="pTaskIn" class="ptaskin" maxlength="140" placeholder="Add a task and press Enter" aria-label="Add a task to this project">
+      <ul id="pTasks"></ul>
+    </div>
+    <div class="btns">
+      <button type="button" class="btn danger" id="pDel">Delete</button>
+      <button type="button" class="btn" id="pCancel">Cancel</button>
+      <button type="submit" class="btn primary" id="pSave">Create</button>
+    </div>
+  </form>
+</dialog>
+
+<div id="pmenu" popover="manual" role="menu"></div>
 
 <dialog id="syncDlg">
   <form class="sheet" id="syncForm" autocomplete="off">

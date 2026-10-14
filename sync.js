@@ -54,13 +54,13 @@
       }
       return [...m.values()].filter(x => !(deleted[x.id] > (x.u || 0)));
     };
-    return { events: pick(a.events, b.events), tasks: pick(a.tasks, b.tasks), tags: { ...b.tags, ...a.tags }, deleted, seed: false };
+    return { events: pick(a.events, b.events), tasks: pick(a.tasks, b.tasks), projects: pick(a.projects, b.projects), tags: { ...b.tags, ...a.tags }, deleted, seed: false };
   }
 
   const byId = (x, y) => x.id < y.id ? -1 : 1;
   const sortKeys = o => Object.fromEntries(Object.entries(o).sort());
   const sig = s => JSON.stringify([
-    [...s.events].sort(byId), [...s.tasks].sort(byId), sortKeys(s.tags), sortKeys(s.deleted)
+    [...s.events].sort(byId), [...s.tasks].sort(byId), [...s.projects].sort(byId), sortKeys(s.tags), sortKeys(s.deleted)
   ]);
 
   window.DB_SYNC = { getCfg, setCfg, get, put, merge, sig };

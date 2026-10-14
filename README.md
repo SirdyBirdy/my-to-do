@@ -74,8 +74,16 @@ Do this on each device. The token is stored per browser, so each one needs it pa
 - **Tags:** type a new tag in the form or pick an existing one. Use the chips under the title to filter.
 - **Past dates:** hidden by default. The clock button shows them.
 - **Tasks:** the side panel holds items with no date. Press `T` to jump to it. Click a task to rename it. Done tasks collapse under the list.
+- **Projects:** a project groups several tasks, like a website build. Open the Projects view (the stacked-layers button), press `N` or the + button, name it, and create it. The dialog stays open so you can type tasks and press Enter after each one. A project card shows a progress bar and its next open tasks. Tick tasks off right on the card.
+- **Project deadlines:** a deadline is optional. A project with one also appears on the date board with a progress bar, and turns amber if it runs overdue. Projects without a deadline only show in the Projects view.
+- **Moving tasks into a project:** hover a task in the side panel and click the folder icon, then pick a project. The same menu moves a task back out. Tasks inside a project no longer appear in the side panel.
+- **Finished projects:** once every task is done, the project fades and hides from the Projects view. The clock button shows completed ones again.
 - **Search:** press `/`.
 - **Views:** board or list, with the buttons next to the cloud.
+
+## Updating the app
+
+Upload the new files to the app repo, replacing the old ones, and commit. Pages takes a minute or two to publish. Then refresh each device with a hard refresh (Cmd+Shift+R on a Mac) or close and reopen the Dock app. Update every device before you edit on any of them. A device still running the old version does not know about projects and can overwrite them in the cloud copy.
 
 ## Backups
 

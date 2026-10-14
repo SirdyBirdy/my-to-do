@@ -11,6 +11,7 @@
     clock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
     clash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 8v5M12 17h.01"/></svg>',
     repeat: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M17 2l4 4-4 4"/><path d="M3 11V9a3 3 0 0 1 3-3h15"/><path d="M7 22l-4-4 4-4"/><path d="M21 13v2a3 3 0 0 1-3 3H3"/></svg>',
+    folder: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>',
     x: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>'
   };
   const REPEAT_LABEL = { weekly: 'Weekly', monthly: 'Monthly', yearly: 'Yearly' };
@@ -79,6 +80,7 @@
   }
   function rel(o) {
     const a = diffDays(o.date), b = diffDays(o.end);
+    if (isOverdue(o)) return `Overdue by ${-b} day${-b === 1 ? '' : 's'}`;
     if (a <= 0 && b >= 0) {
       if (o.end === o.date) return 'Today';
       if (b === 0) return 'Ends today';
@@ -104,9 +106,11 @@
     e.time = e.time || ''; e.note = e.note || ''; e.tag = e.tag || ''; e.u = e.u || 0;
     return e;
   }
-  const normTask = t => ({ id: t.id, text: t.text || '', done: !!t.done, c: t.c || 0, u: t.u || 0 });
+  const normTask = t => ({ id: t.id, text: t.text || '', done: !!t.done, c: t.c || 0, u: t.u || 0, p: t.p || '' });
+  const normProject = p => ({ id: p.id, name: p.name || '', due: p.due || '', tag: p.tag || '', note: p.note || '', c: p.c || 0, u: p.u || 0 });
   const normState = s => ({
     events: (s.events || []).map(normalize), tasks: (s.tasks || []).map(normTask),
+    projects: (s.projects || []).map(normProject),
     tags: s.tags || {}, deleted: s.deleted || {}, seed: !!s.seed
   });
 
@@ -124,7 +128,7 @@
       const s = JSON.parse(localStorage.getItem(KEY));
       if (s && Array.isArray(s.events)) return normState(s);
     } catch (e) {}
-    const t = now();
+    const t = now(), pid = uid();
     const seed = normState({
       seed: true,
       tags: { Personal: PALETTE[0], Work: PALETTE[4], Health: PALETTE[5], Bills: PALETTE[1] },
@@ -137,7 +141,13 @@
       ],
       tasks: [
         { id: uid(), u: t, c: t, text: 'Tasks with no date live here' },
-        { id: uid(), u: t, c: t - 1, text: 'Click a task to edit it' }
+        { id: uid(), u: t, c: t - 1, text: 'Click a task to edit it' },
+        { id: uid(), u: t, c: t - 2, p: pid, text: 'Draft the homepage' },
+        { id: uid(), u: t, c: t - 3, p: pid, text: 'Collect photos from the client' },
+        { id: uid(), u: t, c: t - 4, p: pid, text: 'Set up the domain', done: true }
+      ],
+      projects: [
+        { id: pid, u: t, c: t, name: 'Sample website', due: offset(12), tag: 'Work', note: 'Projects group several tasks. Open the Projects view to see them.' }
       ]
     });
     localStorage.setItem(KEY, JSON.stringify(seed));
@@ -153,18 +163,33 @@
     state.tags[t] = PALETTE.find(c => !used.has(c)) || PALETTE[Object.keys(state.tags).length % PALETTE.length];
   }
   function pruneTags() {
-    const live = new Set(state.events.map(e => e.tag).filter(Boolean));
+    const live = new Set([...state.events, ...state.projects].map(e => e.tag).filter(Boolean));
     for (const t of Object.keys(state.tags)) if (!live.has(t)) delete state.tags[t];
   }
 
   // ---------- selection ----------
-  const isDone = o => !!o.ev.doneKey && o.ev.doneKey === o.date;
+  const projById = id => state.projects.find(p => p.id === id);
+  const projStats = id => {
+    const ts = state.tasks.filter(t => t.p === id), done = ts.filter(t => t.done).length;
+    return { total: ts.length, done, complete: ts.length > 0 && done === ts.length };
+  };
+  const projColor = p => p.tag ? tagColor(p.tag) : PALETTE[0];
+  const colorOf = o => o.ev._project ? projColor(o.project) : tagColor(o.ev.tag);
+  // a project with a deadline shows on the date board as a pseudo-event
+  const projOcc = p => ({
+    ev: { id: p.id, title: p.name, note: p.note, tag: p.tag, time: '', repeat: '', end: '', doneKey: '', _project: true, stats: projStats(p.id) },
+    date: p.due, end: p.due, project: p
+  });
+  const allOccs = () => [...state.events.map(occ), ...state.projects.filter(p => p.due).map(projOcc)];
+  const isDone = o => o.ev._project ? o.ev.stats.complete : (!!o.ev.doneKey && o.ev.doneKey === o.date);
+  const isOverdue = o => o.ev._project && !isDone(o) && diffDays(o.end) < 0;
+  const loose = t => !t.p || !projById(t.p);
   const cmp = (a, b) => a.date.localeCompare(b.date) || (a.ev.time || '99:99').localeCompare(b.ev.time || '99:99') || a.ev.title.localeCompare(b.ev.title);
 
   function visible() {
     const q = ui.q.trim().toLowerCase();
-    return state.events.map(occ).filter(o => {
-      if (!ui.past && diffDays(o.end) < 0) return false;
+    return allOccs().filter(o => {
+      if (!ui.past && diffDays(o.end) < 0 && !isOverdue(o)) return false;
       if (ui.tag && o.ev.tag !== ui.tag) return false;
       if (q && !(`${o.ev.title} ${o.ev.note} ${o.ev.tag}`.toLowerCase().includes(q))) return false;
       return true;
@@ -181,7 +206,7 @@
   function renderHeader() {
     const n = new Date();
     $('today').textContent = `${DAYS_L[n.getDay()]}, ${n.getDate()} ${MONTHS_L[n.getMonth()]}`;
-    const upcoming = state.events.map(occ).filter(o => !isDone(o) && diffDays(o.end) >= 0).sort(cmp);
+    const upcoming = allOccs().filter(o => !isDone(o) && diffDays(o.end) >= 0).sort(cmp);
     const week = upcoming.filter(o => diffDays(o.date) <= 7).length;
     $('summary').textContent = !upcoming.length
       ? 'Nothing coming up'
@@ -194,6 +219,10 @@
     $('pastBtn').setAttribute('aria-pressed', ui.past);
     $('vGrid').setAttribute('aria-pressed', ui.view === 'grid');
     $('vList').setAttribute('aria-pressed', ui.view === 'list');
+    $('vProj').setAttribute('aria-pressed', ui.view === 'projects');
+    $('pastBtn').title = ui.view === 'projects' ? 'Show completed projects' : 'Show past dates';
+    $('fab').title = ui.view === 'projects' ? 'Add a project (N)' : 'Add a date (N)';
+    $('fab').setAttribute('aria-label', ui.view === 'projects' ? 'Add a project' : 'Add a date');
     $('panelBtn').setAttribute('aria-pressed', ui.panel);
     $('layout').classList.toggle('panel-on', ui.panel);
   }
@@ -201,6 +230,11 @@
   function meta(o) {
     const e = o.ev, bits = [];
     if (e.tag) bits.push(`<span class="pill">${esc(e.tag)}</span>`);
+    if (e._project) {
+      const st = e.stats;
+      bits.push(`<span class="pill plain">${ICON.folder}${st.total ? `${st.done} of ${st.total}` : 'Project'}</span>`);
+      return bits.join('');
+    }
     if (e.time) bits.push(`<span class="pill plain">${ICON.clock}${fmtTime(e.time)}</span>`);
     if (o.end !== o.date) bits.push(`<span class="pill plain">${span(o.date, o.end) + 1} days</span>`);
     if (e.repeat) bits.push(`<span class="pill plain">${ICON.repeat}${REPEAT_LABEL[e.repeat]}</span>`);
@@ -209,34 +243,38 @@
     return bits.join('');
   }
   function actions(o) {
+    const edit = `<button data-act="edit" aria-label="Edit" title="Edit">${ICON.edit}</button>`;
+    if (o.ev._project) return `<div class="actions">${edit}</div>`;
     const d = isDone(o);
-    return `<div class="actions"><button class="tick ${d ? 'on' : ''}" data-act="done" aria-label="${d ? 'Mark not done' : 'Mark done'}" title="${d ? 'Mark not done' : 'Mark done'}">${ICON.check}</button><button data-act="edit" aria-label="Edit" title="Edit">${ICON.edit}</button></div>`;
+    return `<div class="actions"><button class="tick ${d ? 'on' : ''}" data-act="done" aria-label="${d ? 'Mark not done' : 'Mark done'}" title="${d ? 'Mark not done' : 'Mark done'}">${ICON.check}</button>${edit}</div>`;
   }
   function cls(o, base) {
-    const covers = diffDays(o.date) <= 0 && diffDays(o.end) >= 0;
-    return `${base}${covers ? ' today' : ''}${diffDays(o.end) < 0 ? ' past' : ''}${isDone(o) ? ' done' : ''}`;
+    const covers = diffDays(o.date) <= 0 && diffDays(o.end) >= 0, over = isOverdue(o);
+    return `${base}${covers ? ' today' : ''}${diffDays(o.end) < 0 && !over ? ' past' : ''}${isDone(o) ? ' done' : ''}${over ? ' overdue' : ''}`;
   }
   function rangeLabel(o) {
     const a = parse(o.date), b = parse(o.end);
     return `${DAYS[a.getDay()]} to ${DAYS[b.getDay()]} ${b.getDate()}${b.getMonth() !== a.getMonth() ? ' ' + MONTHS[b.getMonth()] : ''}`;
   }
+  const pbar = st => `<div class="pbar"><i style="width:${st.total ? Math.round(st.done / st.total * 100) : 0}%"></i></div>`;
 
   function cardHTML(o) {
     const d = parse(o.date), e = o.ev;
     const yr = d.getFullYear() !== new Date().getFullYear() ? ` ${d.getFullYear()}` : '';
     const multi = o.end !== o.date;
-    return `<article class="${cls(o,'card')}" data-id="${e.id}" style="--c:${tagColor(e.tag)}">
+    return `<article class="${cls(o,'card')}" data-id="${e.id}"${e._project ? ' data-kind="project"' : ''} style="--c:${colorOf(o)}">
       ${actions(o)}
       <div class="date"><span class="day">${d.getDate()}</span><div class="dm"><b>${MONTHS[d.getMonth()]}${yr}</b><span>${multi ? rangeLabel(o) : DAYS[d.getDay()]}</span></div></div>
       <div class="rel">${rel(o)}</div>
       <h3>${esc(e.title)}</h3>
+      ${e._project && e.stats.total ? pbar(e.stats) : ''}
       ${e.note ? `<p class="note">${esc(e.note)}</p>` : ''}
       <div class="meta">${meta(o)}</div>
     </article>`;
   }
   function rowHTML(o) {
     const d = parse(o.date), e = o.ev, multi = o.end !== o.date;
-    return `<div class="${cls(o,'row')}" data-id="${e.id}" style="--c:${tagColor(e.tag)}">
+    return `<div class="${cls(o,'row')}" data-id="${e.id}"${e._project ? ' data-kind="project"' : ''} style="--c:${colorOf(o)}">
       <div class="d"><strong>${d.getDate()}</strong><span>${DAYS[d.getDay()]}</span></div>
       <div><h3>${esc(e.title)}</h3><div class="sub"><span class="rel">${rel(o)}</span>${multi ? `<span>${rangeLabel(o)}</span>` : ''}${e.note ? `<span>${esc(e.note.split('\n')[0].slice(0, 70))}</span>` : ''}</div></div>
       <div class="end">${meta(o)}${actions(o)}</div>
@@ -249,6 +287,7 @@
   }
 
   function renderBoard() {
+    if (ui.view === 'projects') { renderProjects(); return; }
     const items = visible();
     const el = $('board');
     if (!items.length) {
@@ -276,19 +315,29 @@
     return `<li class="task${t.done ? ' done' : ''}" data-tid="${t.id}">
       <button class="tcheck" data-t="toggle" aria-label="${t.done ? 'Mark not done' : 'Mark done'}">${ICON.check}</button>
       <span class="ttext" data-t="edit" tabindex="0">${esc(t.text)}</span>
+      <button class="tmove" data-t="move" aria-label="Move to project" title="Move to project">${ICON.folder}</button>
       <button class="tdel" data-t="del" aria-label="Delete task">${ICON.x}</button>
     </li>`;
   }
   function renderTasks() {
-    const open = state.tasks.filter(t => !t.done).sort((a, b) => b.c - a.c);
-    const done = state.tasks.filter(t => t.done).sort((a, b) => b.u - a.u);
+    const mine = state.tasks.filter(loose);
+    const open = mine.filter(t => !t.done).sort((a, b) => b.c - a.c);
+    const done = mine.filter(t => t.done).sort((a, b) => b.u - a.u);
     $('taskCount').textContent = open.length || '';
     $('taskList').innerHTML = open.length ? open.map(taskHTML).join('') : '<li class="t-empty">Nothing to do. Add a task above.</li>';
     $('doneBar').hidden = !done.length;
     $('doneToggle').textContent = `${ui.showDone ? 'Hide' : 'Show'} done (${done.length})`;
     $('doneList').innerHTML = ui.showDone ? done.map(taskHTML).join('') : '';
   }
-  function render() { renderHeader(); renderBoard(); renderTasks(); }
+  function renderPTasks() {
+    if (!editingP) return;
+    const ts = state.tasks.filter(t => t.p === editingP.id).sort((a, b) => a.c - b.c);
+    const list = [...ts.filter(t => !t.done), ...ts.filter(t => t.done)];
+    $('pTasks').innerHTML = list.length ? list.map(taskHTML).join('') : '<li class="t-empty">No tasks yet.</li>';
+    $('pCount').textContent = ts.length ? `${ts.filter(t => t.done).length} of ${ts.length} done` : '';
+  }
+  function render() { renderHeader(); renderBoard(); renderTasks(); if ($('pdlg').open) renderPTasks(); }
+  function refreshTasks() { renderTasks(); renderBoard(); if ($('pdlg').open) renderPTasks(); }
 
   // ---------- dialog: dates ----------
   const dlg = $('dlg');
@@ -336,7 +385,7 @@
     renderTagPick();
   });
   $('cancelBtn').onclick = () => dlg.close();
-  for (const d of [dlg, $('syncDlg')]) d.addEventListener('click', e => { if (e.target === d) d.close(); });
+  for (const d of [dlg, $('syncDlg'), $('pdlg')]) d.addEventListener('click', e => { if (e.target === d) d.close(); });
 
   $('form').addEventListener('submit', ev => {
     ev.preventDefault();
@@ -366,11 +415,24 @@
     toast(`Deleted "${kind === 'task' ? item.text : item.title}"`);
   }
   const removeEvent = id => removeItem('event', id);
+  function removeProject(id) {
+    const p = projById(id); if (!p) return;
+    const tasks = state.tasks.filter(t => t.p === id);
+    lastDeleted = { kind: 'project', item: p, tasks, tag: p.tag, color: state.tags[p.tag] };
+    state.projects = state.projects.filter(x => x.id !== id);
+    state.tasks = state.tasks.filter(t => t.p !== id);
+    const t = now(); state.deleted[id] = t; tasks.forEach(x => { state.deleted[x.id] = t; });
+    pruneTags(); save(); render();
+    toast(`Deleted "${p.name}"${tasks.length ? ` and ${tasks.length} task${tasks.length === 1 ? '' : 's'}` : ''}`);
+  }
 
   $('undoBtn').onclick = () => {
     if (!lastDeleted) return;
     const { kind, item } = lastDeleted;
-    (kind === 'task' ? state.tasks : state.events).push(touch(item));
+    if (kind === 'project') {
+      state.projects.push(touch(item));
+      lastDeleted.tasks.forEach(x => { state.tasks.push(touch(x)); delete state.deleted[x.id]; });
+    } else (kind === 'task' ? state.tasks : state.events).push(touch(item));
     delete state.deleted[item.id];
     if (lastDeleted.tag && lastDeleted.color && !state.tags[lastDeleted.tag]) state.tags[lastDeleted.tag] = lastDeleted.color;
     lastDeleted = null; save(); render(); hideToast();
@@ -382,8 +444,11 @@
   function hideToast() { $('toast').classList.remove('show'); }
 
   $('board').addEventListener('click', e => {
+    const tg = e.target.closest('.ptask [data-t="toggle"]');
+    if (tg) { toggleTask(tg.closest('[data-tid]').dataset.tid); return; }
     const item = e.target.closest('[data-id]'); if (!item) return;
     const id = item.dataset.id, act = e.target.closest('[data-act]');
+    if (item.dataset.kind === 'project') { openProject(id); return; }
     if (act && act.dataset.act === 'done') {
       const ev = state.events.find(x => x.id === id), o = occ(ev);
       ev.doneKey = isDone(o) ? '' : o.date; touch(ev); save(); render();
@@ -399,7 +464,7 @@
   const setView = v => { ui.view = v; localStorage.setItem('dateboard.view', v); render(); };
   $('vGrid').onclick = () => setView('grid');
   $('vList').onclick = () => setView('list');
-  $('fab').onclick = () => openDlg();
+  $('fab').onclick = () => ui.view === 'projects' ? openProject() : openDlg();
 
   // ---------- tasks panel ----------
   const setPanel = on => { ui.panel = on; localStorage.setItem('dateboard.panel', on ? '1' : '0'); renderHeader(); };
@@ -410,7 +475,7 @@
     e.preventDefault();
     const text = $('taskIn').value.trim(); if (!text) return;
     state.tasks.push({ id: uid(), text, done: false, c: now(), u: now() });
-    $('taskIn').value = ''; save(); renderTasks();
+    $('taskIn').value = ''; save(); refreshTasks();
   });
   $('doneToggle').onclick = () => { ui.showDone = !ui.showDone; renderTasks(); };
   $('doneClear').onclick = () => {
@@ -431,22 +496,150 @@
       if (finished) return; finished = true;
       const v = inp.value.trim();
       if (ok && v && v !== t.text) { t.text = v; touch(t); save(); }
-      renderTasks();
+      refreshTasks();
     };
     inp.onkeydown = e => { if (e.key === 'Enter') finish(true); else if (e.key === 'Escape') finish(false); };
     inp.onblur = () => finish(true);
   }
-  $('tasks').addEventListener('click', e => {
+  function toggleTask(id) {
+    const t = state.tasks.find(x => x.id === id); if (!t) return;
+    t.done = !t.done; touch(t); save(); refreshTasks();
+  }
+  function taskClick(e) {
     const b = e.target.closest('[data-t]'); if (!b) return;
     const li = b.closest('[data-tid]'), id = li.dataset.tid;
-    if (b.dataset.t === 'toggle') {
-      const t = state.tasks.find(x => x.id === id); t.done = !t.done; touch(t); save(); renderTasks();
-    } else if (b.dataset.t === 'del') removeItem('task', id);
+    if (b.dataset.t === 'toggle') toggleTask(id);
+    else if (b.dataset.t === 'del') removeItem('task', id);
+    else if (b.dataset.t === 'move') openMoveMenu(b, id);
     else editTask(li);
-  });
-  $('tasks').addEventListener('keydown', e => {
+  }
+  function taskKey(e) {
     if (e.key === 'Enter' && e.target.classList.contains('ttext')) editTask(e.target.closest('[data-tid]'));
+  }
+  for (const el of [$('tasks'), $('pTasks')]) { el.addEventListener('click', taskClick); el.addEventListener('keydown', taskKey); }
+
+  // move a task into a project (or back out)
+  const pm = $('pmenu');
+  const menuHide = () => { if (pm.hidePopover) { if (pm.matches(':popover-open')) pm.hidePopover(); } else pm.hidden = true; };
+  if (!pm.showPopover) pm.hidden = true;
+  function openMoveMenu(btn, id) {
+    const t = state.tasks.find(x => x.id === id); if (!t) return;
+    const projects = [...state.projects].sort((a, b) => a.name.localeCompare(b.name));
+    pm.dataset.tid = id;
+    pm.innerHTML = (t.p && projById(t.p) ? '<button data-mv="">No project</button>' : '')
+      + projects.map(p => `<button data-mv="${p.id}" class="${t.p === p.id ? 'cur' : ''}"><i style="background:${projColor(p)}"></i>${esc(p.name)}</button>`).join('')
+      + (projects.length ? '' : '<div class="pm-empty">No projects yet. Open the Projects view and press +.</div>');
+    const r = btn.getBoundingClientRect();
+    pm.style.top = `${Math.min(r.bottom + 6, innerHeight - 220)}px`;
+    pm.style.left = `${Math.max(8, Math.min(r.right - 220, innerWidth - 236))}px`;
+    if (pm.showPopover) { if (pm.matches(':popover-open')) pm.hidePopover(); pm.showPopover(); } else pm.hidden = false;
+  }
+  pm.addEventListener('click', e => {
+    const b = e.target.closest('[data-mv]'); if (!b) return;
+    const t = state.tasks.find(x => x.id === pm.dataset.tid);
+    if (t) { t.p = b.dataset.mv; touch(t); save(); }
+    menuHide(); refreshTasks();
   });
+  document.addEventListener('click', e => { if (!pm.contains(e.target) && !e.target.closest('[data-t="move"]')) menuHide(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') menuHide(); });
+
+  // ---------- projects ----------
+  function projCardHTML(p) {
+    const st = projStats(p.id), c = projColor(p);
+    const open = state.tasks.filter(t => t.p === p.id && !t.done).sort((a, b) => a.c - b.c);
+    let due = '';
+    if (p.due) {
+      const d = parse(p.due), n = diffDays(p.due), over = !st.complete && n < 0;
+      due = `<div class="rel${over ? ' over' : ''}">${DAYS[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}, ${over ? `overdue by ${-n} day${n === -1 ? '' : 's'}` : relN(n).toLowerCase()}</div>`;
+    }
+    return `<article class="card pcard${st.complete ? ' complete' : ''}" data-id="${p.id}" data-kind="project" style="--c:${c}">
+      <div class="actions"><button data-act="edit" aria-label="Edit project" title="Edit project">${ICON.edit}</button></div>
+      <h3 class="pname">${esc(p.name)}</h3>
+      ${due}
+      ${pbar(st)}
+      <div class="pcount">${st.total ? (st.complete ? 'All done' : `${st.done} of ${st.total} done`) : 'No tasks yet'}</div>
+      ${open.length ? `<ul class="pmini">${open.slice(0, 5).map(t => `<li class="ptask" data-tid="${t.id}"><button class="tcheck" data-t="toggle" aria-label="Mark done">${ICON.check}</button><span>${esc(t.text)}</span></li>`).join('')}</ul>` : ''}
+      ${open.length > 5 ? `<div class="more">+${open.length - 5} more</div>` : ''}
+      ${p.note ? `<p class="note">${esc(p.note)}</p>` : ''}
+      ${p.tag ? `<div class="meta"><span class="pill">${esc(p.tag)}</span></div>` : ''}
+    </article>`;
+  }
+  function renderProjects() {
+    const q = ui.q.trim().toLowerCase();
+    const items = state.projects.filter(p => {
+      if (ui.tag && p.tag !== ui.tag) return false;
+      if (q && !`${p.name} ${p.note} ${p.tag}`.toLowerCase().includes(q)) return false;
+      if (!ui.past && projStats(p.id).complete) return false;
+      return true;
+    }).sort((a, b) => (a.due || '9999').localeCompare(b.due || '9999') || a.name.localeCompare(b.name));
+    const el = $('board');
+    if (!items.length) {
+      const filtered = ui.tag || ui.q || state.projects.length;
+      el.innerHTML = `<div class="empty"><h2>${filtered ? 'No projects to show' : 'No projects yet'}</h2><p>${filtered ? 'Clear the filters, or use the clock button to include completed projects.' : 'Press <kbd>N</kbd> or tap + to start one.'}</p></div>`;
+      return;
+    }
+    const n = colCount(), cols = Array.from({ length: n }, () => '');
+    items.forEach((p, i) => { cols[i % n] += projCardHTML(p); });
+    el.innerHTML = `<div class="grid">${cols.map(c => `<div class="col">${c}</div>`).join('')}</div>`;
+  }
+
+  const pdlg = $('pdlg');
+  let editingP = null;
+  function renderPTagPick() {
+    const cur = $('pTag').value.trim();
+    $('pTagpick').innerHTML = Object.keys(state.tags).sort().map(t =>
+      `<button type="button" class="chip" data-pick="${esc(t)}" style="--c:${state.tags[t]}" aria-pressed="${cur === t}"><i></i>${esc(t)}</button>`).join('');
+  }
+  $('pTag').addEventListener('input', renderPTagPick);
+  $('pTagpick').addEventListener('click', e => {
+    const b = e.target.closest('[data-pick]'); if (!b) return;
+    $('pTag').value = $('pTag').value.trim() === b.dataset.pick ? '' : b.dataset.pick;
+    renderPTagPick();
+  });
+  function openProject(id, focusTask) {
+    editingP = id ? projById(id) : null;
+    $('pTitle').textContent = editingP ? 'Edit project' : 'New project';
+    $('pSave').textContent = editingP ? 'Save' : 'Create';
+    $('pCancel').textContent = editingP ? 'Close' : 'Cancel';
+    $('pDel').style.display = editingP ? '' : 'none';
+    $('pName').value = editingP ? editingP.name : '';
+    $('pDue').value = editingP ? editingP.due : '';
+    $('pTag').value = editingP ? editingP.tag : (ui.tag || '');
+    $('pNote').value = editingP ? editingP.note : '';
+    $('pTasksWrap').hidden = !editingP;
+    renderPTagPick(); renderPTasks();
+    if (!pdlg.open) pdlg.showModal();
+    setTimeout(() => (focusTask && editingP ? $('pTaskIn') : $('pName')).focus(), 30);
+  }
+  $('pCancel').onclick = () => pdlg.close();
+  $('pDel').onclick = () => {
+    if (!editingP) return;
+    const n = state.tasks.filter(t => t.p === editingP.id).length;
+    if (n && !confirm(`Delete this project and its ${n} task${n === 1 ? '' : 's'}?`)) return;
+    const id = editingP.id; pdlg.close(); removeProject(id);
+  };
+  $('pform').addEventListener('submit', ev => {
+    ev.preventDefault();
+    const rec = { name: $('pName').value.trim(), due: $('pDue').value, tag: $('pTag').value.trim(), note: $('pNote').value.trim() };
+    if (!rec.name) return;
+    ensureTag(rec.tag);
+    let target = editingP && projById(editingP.id);
+    const isNew = !target;
+    if (target) touch(Object.assign(target, rec));
+    else { target = touch(normProject({ id: editingP ? editingP.id : uid(), c: now(), ...rec })); state.projects.push(target); }
+    pruneTags(); save(); render();
+    if (isNew) openProject(target.id, true); // stay open so tasks can be added right away
+    else pdlg.close();
+  });
+  $('pTaskIn').addEventListener('keydown', e => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    const text = $('pTaskIn').value.trim();
+    if (!text || !editingP) return;
+    state.tasks.push({ id: uid(), text, done: false, c: now(), u: now(), p: editingP.id });
+    $('pTaskIn').value = ''; save(); refreshTasks();
+  });
+  $('vProj').onclick = () => setView('projects');
 
   // ---------- menu, backup ----------
   $('moreBtn').onclick = e => { e.stopPropagation(); $('pop').classList.toggle('open'); };
@@ -466,11 +659,11 @@
       if (!Array.isArray(s.events)) throw 0;
       if (!confirm(`Replace your current board with ${s.events.length} dates from this file?`)) return;
       const next = normState(s), t = now();
-      const keep = new Set([...next.events, ...next.tasks].map(x => x.id));
-      [...state.events, ...state.tasks].forEach(x => { if (!keep.has(x.id)) state.deleted[x.id] = t; });
-      [...next.events, ...next.tasks].forEach(x => { x.u = t; delete state.deleted[x.id]; });
+      const keep = new Set([...next.events, ...next.tasks, ...next.projects].map(x => x.id));
+      [...state.events, ...state.tasks, ...state.projects].forEach(x => { if (!keep.has(x.id)) state.deleted[x.id] = t; });
+      [...next.events, ...next.tasks, ...next.projects].forEach(x => { x.u = t; delete state.deleted[x.id]; });
       state = { ...next, deleted: state.deleted, seed: false };
-      state.events.forEach(ev => ensureTag(ev.tag)); save(); render();
+      [...state.events, ...state.projects].forEach(x => ensureTag(x.tag)); save(); render();
     } catch (err) { alert('That file is not a Dateboard backup.'); }
     e.target.value = '';
   };
@@ -485,7 +678,7 @@
   }
   const payload = () => ({
     version: 1, updated: new Date().toISOString(),
-    events: state.events, tasks: state.tasks, tags: state.tags, deleted: state.deleted
+    events: state.events, tasks: state.tasks, projects: state.projects, tags: state.tags, deleted: state.deleted
   });
   function scheduleSync() { if (SYNC.getCfg()) { clearTimeout(syncTimer); syncTimer = setTimeout(sync, 1500); } }
 
@@ -500,7 +693,7 @@
         const remote = r ? normState(r.data) : null;
         const merged = remote ? SYNC.merge(state, remote) : state;
         if (remote && SYNC.sig(merged) !== SYNC.sig(state)) {
-          state = merged; state.events.forEach(ev => ensureTag(ev.tag)); pruneTags(); persistLocal(); render();
+          state = merged; [...state.events, ...state.projects].forEach(x => ensureTag(x.tag)); pruneTags(); persistLocal(); render();
         }
         if (remote && SYNC.sig(state) === SYNC.sig(remote)) break; // cloud already matches
         try { await SYNC.put(c, payload(), r && r.sha); break; }
@@ -543,9 +736,10 @@
   // ---------- keyboard and lifecycle ----------
   document.addEventListener('keydown', e => {
     const typing = /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName);
-    if (typing || dlg.open || sd.open || e.metaKey || e.ctrlKey) return;
+    if (typing || dlg.open || sd.open || $('pdlg').open || e.metaKey || e.ctrlKey) return;
     if (e.key === '/') { e.preventDefault(); $('q').focus(); }
-    else if (e.key === 'n' || e.key === 'N') { e.preventDefault(); openDlg(); }
+    else if (e.key === 'n' || e.key === 'N') { e.preventDefault(); ui.view === 'projects' ? openProject() : openDlg(); }
+    else if (e.key === 'p' || e.key === 'P') { e.preventDefault(); openProject(); }
     else if (e.key === 't' || e.key === 'T') { e.preventDefault(); setPanel(true); $('taskIn').focus(); }
   });
 
